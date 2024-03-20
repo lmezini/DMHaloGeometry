@@ -76,20 +76,20 @@ class HaloOrientation():
         # loop over each of the 3 coordinates
         for i in range(3):
             v_new[i] += v1[0] * v2[i, 0] + v1[1] * v2[i, 1] + v1[2] * v2[i, 2]
-            
+
         return v_new
 
     @staticmethod
     def generate_random_z_axis_rotation():
-            """Generate random rotation matrix about the z axis."""
+        """Generate random rotation matrix about the z axis."""
 
-            R = np.eye(3)
-            x1 = np.random.rand()
-            R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
-            R[0, 1] = -np.sin(2 * np.pi * x1)
-            R[1, 0] = np.sin(2 * np.pi * x1)
+        R = np.eye(3)
+        x1 = np.random.rand()
+        R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
+        R[0, 1] = -np.sin(2 * np.pi * x1)
+        R[1, 0] = np.sin(2 * np.pi * x1)
 
-            return R
+        return R
 
     @staticmethod
     def uniform_random_rotation(x):
@@ -114,7 +114,8 @@ class HaloOrientation():
 
         # Rotation of all points around x axis using matrix
         R = HaloOrientation.generate_random_z_axis_rotation()
-        v = np.array([np.cos(x2) * np.sqrt(x3), np.sin(x2) * np.sqrt(x3), np.sqrt(1 - x3)])
+        v = np.array([np.cos(x2) * np.sqrt(x3), np.sin(x2)
+                     * np.sqrt(x3), np.sqrt(1 - x3)])
         H = np.eye(3) - (2 * np.outer(v, v))
         M = -(H @ R)
         x = x.reshape((-1, 3))
@@ -160,18 +161,17 @@ class HaloOrientation():
             e_vect (array): 3x3 array of inertia tensor eigenvectors
 
         """
-        
-        #define a diagonal matrix of ones
+
+        # define a diagonal matrix of ones
         a = np.zeros((3, 3))
         np.fill_diagonal(a, 1.)
 
-        #take dot product of e_vect and e_vect.T
-        #off diagonals are usually 1e-15 so round them to 0.
-        m = np.abs(np.round(np.dot(e_vect,e_vect.T),1))
+        # take dot product of e_vect and e_vect.T
+        # off diagonals are usually 1e-15 so round them to 0.
+        m = np.abs(np.round(np.dot(e_vect, e_vect.T), 1))
 
-        #check if all elements are equal to identity matrix
+        # check if all elements are equal to identity matrix
         if np.any(a != m):
-            print("not orthonormal")
             sys.exit(1)
 
     @staticmethod
@@ -190,36 +190,36 @@ class HaloOrientation():
             t: angular separation between major axis and position vector
         """
 
-        #get prinicpal axis (eigenvectors) from host inertia tensor
-        #ev are eigenvectors
+        # get prinicpal axis (eigenvectors) from host inertia tensor
+        # ev are eigenvectors
         ew, ev = HaloOrientation.get_eigs(I, rvir)
         HaloOrientation.check_ortho(ev)
 
-        #define major axis
-        #can do for semi-major and minor by indexing 1 or 2 instead of 0
+        # define major axis
+        # can do for semi-major and minor by indexing 1 or 2 instead of 0
         hA = ev[0]
-        hA2 = np.repeat(hA,len(pos)).reshape(3,len(pos)).T
+        hA2 = np.repeat(hA, len(pos)).reshape(3, len(pos)).T
 
-        #calculate angular separation between position vector and major axis
-        t = np.arccos(abs((pos*hA2).sum(axis=1)/(norm(pos,axis=1)*norm(hA))))
+        # calculate angular separation between position vector and major axis
+        t = np.arccos(abs((pos*hA2).sum(axis=1)/(norm(pos, axis=1)*norm(hA))))
 
-        #dot product to find magnitude of component 
-        #of position vectors parallel to major axis
+        # dot product to find magnitude of component
+        # of position vectors parallel to major axis
         para1 = (pos * hA2 / norm(hA)).sum(axis=1)
 
-        #normalized major axis vector
+        # normalized major axis vector
         para2 = (hA / norm(hA)).T
 
-        #parallel vector (magnitude and direction)
+        # parallel vector (magnitude and direction)
         para = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
 
-        #perpendicular component 
+        # perpendicular component
         perp = pos - para.T
 
         return perp, t
-    
+
     @staticmethod
-    def cut_data(p,p1,s,q,rvir):
+    def cut_data(p, p1, s, q, rvir):
         """ Remove particles that fall outside ellipsoid defined
         by new inertia tensor
 
@@ -229,23 +229,23 @@ class HaloOrientation():
             s:
             q:
             rvir:
-        
+
         """
 
-        #calculate particle distances in new coord system
+        # calculate particle distances in new coord system
         d = p1[0]**2 + (p1[1]/q)**2 + (p1[2]/s)**2
-        cut = d<0.00017**2 
-        d[cut] = 0.00017**2 #particle distances should not be below force resolution
-        
-        #determine which are within the bounds
-        cut = d<=(rvir**2)
-        p1 = p1.T[cut].T #trimmed down in new coord system
-        p = p.T[cut].T #in orig coordinate system
+        cut = d < 0.00017**2
+        d[cut] = 0.00017**2  # particle distances should not be below force resolution
+
+        # determine which are within the bounds
+        cut = d <= (rvir**2)
+        p1 = p1.T[cut].T  # trimmed down in new coord system
+        p = p.T[cut].T  # in orig coordinate system
 
         return p, p1
 
     @staticmethod
-    def get_inertia_tensor(p, s=1.0, q=1.0, p1 = None, normalize=False):
+    def get_inertia_tensor(p, s=1.0, q=1.0, p1=None, normalize=False):
         """ Calculate inertia tensor from particles
         (assuming equal mass particles)
 
@@ -279,55 +279,55 @@ class HaloOrientation():
         Iyx = Ixy
         Izy = Iyz
         Izx = Ixz
-        I = np.array(((Ixx,Ixy,Ixz),(Iyx,Iyy,Iyz),(Izx,Izy,Izz)))
+        I = np.array(((Ixx, Ixy, Ixz), (Iyx, Iyy, Iyz), (Izx, Izy, Izz)))
 
         return I
-    
+
     @staticmethod
-    def fit_inertia_tensor(p,rvir):
+    def fit_inertia_tensor(p, rvir):
         """ Iterative routine to find inertia tensor based on Zemp et. al. 2011
-        
+
         Arguments:
             p: position vector (x,y,z) for particle or set of particles
               with dimension (n, 3), where n is the number of vectors
             rvir: (float) virial radius of host halo
-        
+
         Returns:
             I: (array) inertia tensor
 
         """
 
-        s,q = 1.,1.
-        I = HaloOrientation.get_inertia_tensor(p,s,q)
+        s, q = 1., 1.
+        I = HaloOrientation.get_inertia_tensor(p, s, q)
         tol = .001
         it = 0
         err = 1.
 
-        while err>tol:
-            s_old, q_old = s,q
+        while err > tol:
+            s_old, q_old = s, q
 
-            #get eigen vectors and values of inertia tensor
-            w,v = HaloOrientation.get_eigs(I,rvir)
+            # get eigen vectors and values of inertia tensor
+            w, v = HaloOrientation.get_eigs(I, rvir)
 
-            #check if vectors are orthonormal
+            # check if vectors are orthonormal
             HaloOrientation.check_ortho(v)
 
-            #get new s and q
-            s,q = HaloOrientation.get_axis(w)
+            # get new s and q
+            s, q = HaloOrientation.get_axis(w)
 
-            #rotate to frame of principle axis 
-            p1 = HaloOrientation.transform(p,v)
+            # rotate to frame of principle axis
+            p1 = HaloOrientation.transform(p, v)
 
-            #select which particles fall within new ellipsoid
-            p, p1 = HaloOrientation.cut_data(p,p1,s,q,rvir)
+            # select which particles fall within new ellipsoid
+            p, p1 = HaloOrientation.cut_data(p, p1, s, q, rvir)
 
-            #recalculate inertia tensor
+            # recalculate inertia tensor
             I = HaloOrientation.get_inertia_tensor(p, s, q, p1, normalize=True)
 
-            #compare err to tolerance
+            # compare err to tolerance
             err1 = abs(s_old-s)/s_old
             err2 = abs(q_old-q)/q_old
-            err = max(err1,err2)
+            err = max(err1, err2)
 
             it += 1
 
