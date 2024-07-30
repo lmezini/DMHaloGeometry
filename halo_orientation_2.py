@@ -75,11 +75,14 @@ class HaloOrientation():
         return v_new
 
     @staticmethod
-    def uniform_random_rotation_simple(v):
+    def uniform_random_rotation_simple(v, phi=None, theta=None, psi=None):
         """Do uniform random 3D rotation using Euler angles
 
         Args:
             v (array): (3, n) coordinate vector where n is number of vectors
+            phi (float): angle in radians (0 -> 2pi)
+            theta (float): angle in radians (0 -> pi)
+            psi (float): angle in radians (0 -> pi)
 
         Returns:
             v_new (array): rotated vectors
@@ -88,9 +91,14 @@ class HaloOrientation():
             psi (float): rotation angle
         """
 
-        phi = 2*np.arccos(2*np.random.random()-1)
-        theta = np.arccos(2*np.random.random()-1)
-        psi = np.arccos(2*np.random.random()-1)
+        if phi == None:
+            phi = 2*np.arccos(2*np.random.random()-1)
+
+        if theta == None:
+            theta = np.arccos(2*np.random.random()-1)
+
+        if psi == None:
+            psi = np.arccos(2*np.random.random()-1)
 
         v_new = HaloOrientation.rotate(v, phi, theta, psi).T
 
@@ -171,7 +179,7 @@ class HaloOrientation():
         return w, v
 
     @staticmethod
-    def get_random_axes_and_angles(princip_axes):
+    def get_random_axes_and_angles(princip_axes, phi=None, theta=None, psi=None):
         """Define set of randomly oriented axes by rotating principal axes
             and calculate azimuthal angle between new axis and major axis
 
@@ -179,6 +187,9 @@ class HaloOrientation():
             princip_axes (array): Principal axes 3x3 array
                 princip_axes.T[0] corresponds to major axis
                 princip_axes[0] corresponds to i-th component of vectors
+            phi (float): angle in radians (0 -> 2pi)
+            theta (float): angle in radians (0 -> pi)
+            psi (float): angle in radians (0 -> pi)
 
         Returns:
             new_axes (2d array): set of 3 orthogonal vectors
@@ -194,7 +205,7 @@ class HaloOrientation():
 
         # returns angles in radians
         new_axes, phi, theta, psi = HaloOrientation.uniform_random_rotation_simple(
-            princip_axes)
+            princip_axes, phi, theta, psi)
 
         angle = np.dot(new_axes[0], princip_axes.T[0]) / (
             np.linalg.norm(new_axes[0]) * np.linalg.norm(princip_axes.T[0])
@@ -366,7 +377,7 @@ class HaloOrientation():
         """
 
         s, q = 1., 1.
-        I = HaloOrientation.get_inertia_tensor(p, s, q, normalize=False)
+        I = HaloOrientation.get_inertia_tensor(p, s, q)
         tol = .001
         it = 0
         err = 1.
