@@ -6,24 +6,22 @@ import sys
 class HaloOrientation():
 
     @staticmethod
-    def rotate(v, phi, theta, psi):
+    def rotate(v, phi, theta):
         """Rotate vectors in three dimensions
 
-        Arguments:
-            v: vector or set of vectors with dimension (n, 3), where n is the
-                number of vectors
-            theta: angle between 0 and 2pi
-            phi: angle between 0 and pi
-            psi: angle between 0 and pi
+            Arguments:
+                v: vector or set of vectors with dimension (3,n), where n is the number of axis
+                phi: angle between 0 and 2pi
+                theta: angle between 0 and pi
 
-        Returns:
-            Rotated vector or set of vectors with dimension (n, 3), where n is the
-            number of vectors
-        """
+            Returns:
+                Rotated vector or set of vectors with dimension (3,n) where n is the
+                number of vectors
+            """
 
         v_new = np.zeros(np.shape(v))
 
-        Rx = np.matrix(
+        Rz = np.matrix(
             [
                 [1, 0, 0],
                 [0, np.cos(phi), -np.sin(phi)],
@@ -31,23 +29,15 @@ class HaloOrientation():
             ]
         )
 
-        Ry = np.matrix(
+        Rx = np.matrix(
             [
-                [np.cos(theta), 0, np.sin(theta)],
-                [0, 1, 0],
-                [-np.sin(theta), 0, np.cos(theta)],
-            ]
-        )
-
-        Rz = np.matrix(
-            [
-                [np.cos(psi), -np.sin(psi), 0],
-                [np.sin(psi), np.cos(psi), 0],
+                [np.cos(theta), -np.sin(theta), 0],
+                [np.sin(theta), np.cos(theta), 0],
                 [0, 0, 1],
             ]
         )
 
-        R = Rx * Ry * Rz
+        R = Rx * Rz
         v_new += R * v
 
         return v_new
@@ -59,11 +49,11 @@ class HaloOrientation():
         Arguments:
             v1: vector or set of vectors with dimension (3, n), where n is the
                 number of vectors
-            v2: principal axis of desired coordinate system 
+            v2: principal axis of desired coordinate system
 
         Returns:
             Vector or set of vectors in new coordinate system with dimension
-            (3, n), where n is the number of vectors
+            (n, 3), where n is the number of vectors
         """
 
         v_new = np.zeros(np.shape(v1))
@@ -75,78 +65,29 @@ class HaloOrientation():
         return v_new
 
     @staticmethod
-    def uniform_random_rotation_simple(v, phi=None, theta=None, psi=None):
-        """Do uniform random 3D rotation using Euler angles
+    def uniform_rotation(v, phi=None, theta=None):
+        """Do uniform random 3D rotation
 
         Args:
             v (array): (3, n) coordinate vector where n is number of vectors
-            phi (float): angle in radians (0 -> 2pi)
-            theta (float): angle in radians (0 -> pi)
-            psi (float): angle in radians (0 -> pi)
+            phi (float): angle in radians (0 -> 2pi) (default none for random angle)
+            theta (float): angle in radians (0 -> pi) (default none for random angle)
 
         Returns:
-            v_new (array): rotated vectors
-            phi (float): rotation angle
-            theta (float): rotation angle
-            psi (float): rotation angle
+            v_new (array): rotated vectors (3,n)
+            phi (float): angle in radians (0 -> 2pi)
+            theta (float): angle in radians (0 -> pi)
         """
 
         if phi == None:
-            phi = 2*np.arccos(2*np.random.random()-1)
+            phi = 2*np.pi*np.random.random()
 
         if theta == None:
-            theta = np.arccos(2*np.random.random()-1)
+            theta = np.arccos(np.random.random())
 
-        if psi == None:
-            psi = np.arccos(2*np.random.random()-1)
+        v_new = HaloOrientation.rotate(v, phi, theta)
 
-        v_new = HaloOrientation.rotate(v, phi, theta, psi).T
-
-        return v_new, phi, theta, psi
-
-    @staticmethod
-    def generate_random_z_axis_rotation():
-        """Generate random rotation matrix about the z axis."""
-
-        R = np.eye(3)
-        x1 = np.random.rand()
-        R[0, 0] = R[1, 1] = np.cos(2 * np.pi * x1)
-        R[0, 1] = -np.sin(2 * np.pi * x1)
-        R[1, 0] = np.sin(2 * np.pi * x1)
-
-        return R
-
-    @staticmethod
-    def uniform_random_rotation(x):
-        """Apply a random rotation in 3D, with a distribution uniform over the
-        sphere.
-
-        Arguments:
-            x: vector or set of vectors with dimension (n, 3), where n is the
-                number of vectors
-
-        Returns:
-            Array of shape (n, 3) containing the randomly rotated vectors of x,
-            about the mean coordinate of x.
-
-        Algorithm taken from "Fast Random Rotation Matrices" (James Avro, 1992):
-        https://doi.org/10.1016/B978-0-08-050755-2.50034-8
-        """
-
-        # There are two random variables in [0, 1) here (naming is same as paper)
-        x2 = 2 * np.pi * np.random.rand()
-        x3 = np.random.rand()
-
-        # Rotation of all points around x axis using matrix
-        R = HaloOrientation.generate_random_z_axis_rotation()
-        v = np.array([np.cos(x2) * np.sqrt(x3), np.sin(x2)
-                     * np.sqrt(x3), np.sqrt(1 - x3)])
-        H = np.eye(3) - (2 * np.outer(v, v))
-        M = -(H @ R)
-        x = x.reshape((-1, 3))
-        mean_coord = np.mean(x, axis=0)
-
-        return ((x - mean_coord) @ M) + mean_coord @ M
+        return v_new.T, phi, theta
 
     @staticmethod
     def get_eigs(I, rvir):
@@ -179,17 +120,16 @@ class HaloOrientation():
         return w, v
 
     @staticmethod
-    def get_random_axes_and_angles(princip_axes, phi=None, theta=None, psi=None):
+    def get_random_axes_and_angles(princip_axes, phi=None, theta=None):
         """Define set of randomly oriented axes by rotating principal axes
             and calculate azimuthal angle between new axis and major axis
 
         Args:
             princip_axes (array): Principal axes 3x3 array
-                princip_axes.T[0] corresponds to major axis
-                princip_axes[0] corresponds to i-th component of vectors
+                princip_axes[0] corresponds to major axis
+                princip_axes.T[0] corresponds to i-th component of vectors
             phi (float): angle in radians (0 -> 2pi)
             theta (float): angle in radians (0 -> pi)
-            psi (float): angle in radians (0 -> pi)
 
         Returns:
             new_axes (2d array): set of 3 orthogonal vectors
@@ -198,20 +138,20 @@ class HaloOrientation():
                 new_axes.T[0] corresponds to i-th component of vectors
 
             angle (float): azimuthal angle between long axes of both axes sets
-            phi (float): first Euler angle
-            theta (float): second Euler angle
-            psi (float): third Euler angle
+            phi (float): angle in radians (0 -> 2pi)
+            theta (float): angle in radians (0 -> pi)
         """
 
         # returns angles in radians
-        new_axes, phi, theta, psi = HaloOrientation.uniform_random_rotation_simple(
-            princip_axes, phi, theta, psi)
+        new_axes, phi, theta = HaloOrientation.uniform_rotation(
+            princip_axes.T, phi, theta)
 
-        angle = np.dot(new_axes[0], princip_axes.T[0]) / (
-            np.linalg.norm(new_axes[0]) * np.linalg.norm(princip_axes.T[0])
+        new_axes = new_axes.T
+        angle = np.dot(new_axes[0], princip_axes[0]) / (
+            norm(new_axes[0]) * norm(princip_axes.T[0])
         )  # -> cosine of the angle
 
-        return new_axes, angle, phi, theta, psi
+        return new_axes, angle, phi, theta
 
     @staticmethod
     def check_ortho(e_vect):
@@ -292,6 +232,102 @@ class HaloOrientation():
         return perp, angle
 
     @staticmethod
+    def get_2d_shape_position_angle(pos):
+        """
+        Get shape of halo projected in 2 dimensions and its position angle
+
+        Args:
+            pos (array): position (x,y,z) vector or set of vectors with dimension (n, 3), 
+                where n is the number of vectors
+
+        Returns:
+            long_eig (float): length of longest axis.
+            short_eig (float): length of shortest axis.
+            position_angle (float): angle of rotation of longest axis from horizontal axis
+                (measured counterclockwise).
+        """
+
+        r2 = pos[0] ** 2 + pos[1] ** 2
+        Ixx = np.sum((pos[1] * pos[1]) / r2)
+        Iyy = np.sum((pos[0] * pos[0]) / r2)
+        Ixy = np.sum((pos[0] * pos[1]) / r2)
+        Iyx = Ixy
+
+        I = np.array(((Ixx, -Ixy), (-Iyx, Iyy)))
+
+        # return eigenvectors and eigenvalues
+        w, v = eig(I)
+
+        # sort in descending order
+        odr = np.argsort(-1.0 * w)
+
+        # sqrt of e values = a,b,c
+        w = np.sqrt(w[odr])
+        short_eig = w[1]
+        long_eig = w[0]
+
+        long_evect = v[odr][0]
+        x_axis = np.array((1, 0))
+
+        position_angle = np.dot(long_evect, x_axis) / \
+            (norm(long_evect) * norm(x_axis))
+
+        return long_eig, short_eig, position_angle
+
+    @staticmethod
+    def get_2d_coords(pos, axes):
+        """
+        Project along first axis and get coordinates
+        on plane defined by remaining two axes.
+
+        Arguments:
+            pos (array): position (x,y,z) vector or set of vectors with dimension (n, 3), 
+                where n is the number of vectors.
+            axes (array): vectors defining 3 axes of coordinate system.
+
+        Returns:
+            b_coord (float)
+            c_coord (float)
+        """
+
+        hA = axes[0]
+        hB = axes[1]
+        hC = axes[2]
+        hA2 = np.repeat(hA, len(pos)).reshape(3, len(pos)).T
+        hB2 = np.repeat(hB, len(pos)).reshape(3, len(pos)).T
+        hC2 = np.repeat(hC, len(pos)).reshape(3, len(pos)).T
+
+        # find component of vector that is perpendicular to axis of projection (hA)
+        para1 = (pos * hA2 / norm(hA)).sum(axis=1)
+        para2 = (hA / norm(hA)).T
+        para = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
+        perp = pos - para.T
+
+        # find component of perpendicular vector that is parllel to hB
+        para1 = (perp * hB2 / norm(hB)).sum(axis=1)
+        para2 = (hB / norm(hB)).T
+        b = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
+        neg = np.where(para1 < 0)
+
+        # find magnitude
+        b_coord = np.sqrt(np.sum(b.T**2, axis=1))
+        # multiply by -1 if anti-parallel
+        b_coord[neg] = b_coord[neg] * (-1)
+
+        # find component of perpendicular vector that is parallel to hC
+        para1 = (perp * hC2 / norm(hC)).sum(axis=1)
+        para2 = (hC / norm(hC)).T
+        c = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
+        c_coord = np.sqrt(np.sum(c.T**2, axis=1))
+
+        # find magnitude
+        neg = np.where(para1 < 0)
+        # multiply by -1 if anti-parallel
+        c_coord[neg] = c_coord[neg] * (-1)
+
+        return b_coord, c_coord
+
+    @staticmethod
     def cut_data(p, p1, s, q, rvir):
         """ Remove particles that fall outside ellipsoid defined
         by new inertia tensor
@@ -322,7 +358,7 @@ class HaloOrientation():
         return new_p, new_p1
 
     @staticmethod
-    def get_inertia_tensor(p, s=1.0, q=1.0, p1=None, normalize=True):
+    def get_inertia_tensor(p, s=1.0, q=1.0, p1=None, normalize=False):
         """ Calculate inertia tensor from particles
         (assuming equal mass particles)
 
@@ -377,7 +413,8 @@ class HaloOrientation():
         """
 
         s, q = 1., 1.
-        I = HaloOrientation.get_inertia_tensor(p, s, q)
+        I = HaloOrientation.get_inertia_tensor(
+            p, s, q, p1=p, normalize=normalize)
         tol = .001
         it = 0
         err = 1.
