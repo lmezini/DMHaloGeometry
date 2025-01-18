@@ -152,7 +152,6 @@ class HaloOrientation():
             norm(hA) * norm(princip_axes[0])
         )  # -> cosine of the angle
 
-
         # find component of perpendicular vector that is parllel to hB
         b_coord = (hA * princip_axes[1] / norm(princip_axes[1])).sum()
 
@@ -241,8 +240,9 @@ class HaloOrientation():
         return perp
 
     @staticmethod
-    def get_2d_shape(pos):
+    def get_2d_shape_inertia(pos):
         """
+        **Use get_projected_ellipse if need position angle**
         Get shape of halo projected in 2 dimensions and its position angle
 
         Args:
@@ -288,6 +288,62 @@ class HaloOrientation():
         position_angle = np.arccos(x_angle)
 
         return long_eig, short_eig
+
+    @staticmethod
+    def get_projected_ellipse(C, B, A, th, ph):
+        """
+        https://phys.libretexts.org/Bookshelves/Astronomy__Cosmology/Celestial_Mechanics_(Tatum)/04%3A_Coordinate_Geometry_in_Three_Dimensions/4.03%3A_The_Ellipsoid
+
+        Get the 2d projection of a triaxial ellipsoid with axis lengths A>B>C and
+        coordinate axes x, y, z. Transform to a set of coordinate axes x',y',z'
+        such that x' is in the direction (θ,𝜙), first by a rotation through
+        𝜙 about x to form intermediate axes x1, y1, z1, followed by a rotation
+        through θ about y1. 
+
+        Args:
+            A (float): length of minor axis
+            B (float): lenght of semi-major axis
+            C (float): length of major axis
+            th (float): theta (0 to 90 rotates about semi-major axis)
+            ph (float): phi (0 to 360 rotates about major axis)
+
+        Returns:
+            ax1 (float): new x axis
+            ax2 (float): new y axis
+            PS (float): position angle
+
+        """
+        A2 = A*A
+        B2 = B*B
+        C2 = C*C
+
+        TH = th/57.29578
+        PH = ph/57.29578
+
+        STH = np.sin(TH)
+        CTH = np.cos(TH)
+        SPH = np.sin(PH)
+        CPH = np.cos(PH)
+
+        STH2 = STH*STH
+        CTH2 = CTH*CTH
+        SPH2 = SPH*SPH
+        CPH2 = CPH*CPH
+
+        AA = CTH2*(CPH2/A2+SPH2/B2)+STH2/C2
+        TWOHH = 2.*CTH*SPH*CPH*((1./B2)-(1./A2))
+        BB = SPH2/A2+CPH2/B2
+
+        PS = .5*np.arctan2(TWOHH, AA-BB)
+        SPS = np.sin(PS)
+        CPS = np.cos(PS)
+        AAA = CPS*(AA*CPS+TWOHH*SPS)+BB*SPS*SPS
+        BBB = SPS*(AA*SPS-TWOHH*CPS)+BB*CPS*CPS
+        ax1 = 1./np.sqrt(AAA)
+        ax2 = 1./np.sqrt(BBB)
+        # area=3.1415927*ax1*ax2
+
+        return ax1, ax2, PS
 
     @staticmethod
     def get_2d_coords(pos, axes):
