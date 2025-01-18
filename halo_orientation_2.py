@@ -144,14 +144,27 @@ class HaloOrientation():
 
         # returns angles in radians
         new_axes, phi, theta = HaloOrientation.uniform_rotation(
-            princip_axes.T, phi, theta)
+            princip_axes, phi, theta)
 
-        new_axes = new_axes.T
-        angle = np.dot(new_axes[0], princip_axes[0]) / (
-            norm(new_axes[0]) * norm(princip_axes.T[0])
+        hA = new_axes.T[0]
+
+        angle = np.dot(hA, princip_axes[0]) / (
+            norm(hA) * norm(princip_axes[0])
         )  # -> cosine of the angle
 
-        return new_axes, angle, phi, theta
+
+        # find component of perpendicular vector that is parllel to hB
+        b_coord = (hA * princip_axes[1] / norm(princip_axes[1])).sum()
+
+        # find component of perpendicular vector that is parallel to hC
+        c_coord = (hA * princip_axes[2] / norm(princip_axes[2])).sum()
+
+        if b_coord == 0:
+            position_angle = np.pi/2
+        else:
+            position_angle = np.arctan(c_coord/b_coord)
+
+        return new_axes, angle, phi, theta, position_angle
 
     @staticmethod
     def check_ortho(e_vect):
@@ -212,27 +225,23 @@ class HaloOrientation():
 
         v2 = np.repeat(v, len(pos)).reshape(3, len(pos)).T
 
-        # calculate angular separation in radians between position vector and major axis
-        angle = np.arccos(
-            abs((pos*v2).sum(axis=1)/(norm(pos, axis=1)*norm(v))))
-
         # dot product to find magnitude of component
         # of position vectors parallel to major axis
-        para1 = (pos * v2 / norm(v)).sum(axis=1)
+        v_dot = (pos * v2 / norm(v)).sum(axis=1)
 
         # normalized major axis vector
-        para2 = (v / norm(v)).T
+        v_hat = (v / norm(v)).T
 
         # parallel vector (magnitude and direction)
-        para = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
+        para = np.array((v_hat[0] * v_dot, v_hat[1] * v_dot, v_hat[2] * v_dot))
 
         # perpendicular component
         perp = pos - para.T
 
-        return perp, angle
+        return perp
 
     @staticmethod
-    def get_2d_shape_position_angle(pos):
+    def get_2d_shape(pos):
         """
         Get shape of halo projected in 2 dimensions and its position angle
 
@@ -243,8 +252,7 @@ class HaloOrientation():
         Returns:
             long_eig (float): length of longest axis.
             short_eig (float): length of shortest axis.
-            position_angle (float): angle of rotation of longest axis from horizontal axis
-                (measured counterclockwise).
+
         """
 
         r2 = pos[0] ** 2 + pos[1] ** 2
@@ -267,12 +275,19 @@ class HaloOrientation():
         long_eig = w[0]
 
         long_evect = v[odr][0]
+
+        # restrict angle to 0-180
+        if long_evect[1] < 0:
+            long_evect = long_evect*-1
+
         x_axis = np.array((1, 0))
 
-        position_angle = np.dot(long_evect, x_axis) / \
+        x_angle = np.dot(long_evect, x_axis) / \
             (norm(long_evect) * norm(x_axis))
 
-        return long_eig, short_eig, position_angle
+        position_angle = np.arccos(x_angle)
+
+        return long_eig, short_eig
 
     @staticmethod
     def get_2d_coords(pos, axes):
@@ -297,33 +312,9 @@ class HaloOrientation():
         hB2 = np.repeat(hB, len(pos)).reshape(3, len(pos)).T
         hC2 = np.repeat(hC, len(pos)).reshape(3, len(pos)).T
 
-        # find component of vector that is perpendicular to axis of projection (hA)
-        para1 = (pos * hA2 / norm(hA)).sum(axis=1)
-        para2 = (hA / norm(hA)).T
-        para = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
-        perp = pos - para.T
-
-        # find component of perpendicular vector that is parllel to hB
-        para1 = (perp * hB2 / norm(hB)).sum(axis=1)
-        para2 = (hB / norm(hB)).T
-        b = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
-        neg = np.where(para1 < 0)
-
-        # find magnitude
-        b_coord = np.sqrt(np.sum(b.T**2, axis=1))
-        # multiply by -1 if anti-parallel
-        b_coord[neg] = b_coord[neg] * (-1)
-
-        # find component of perpendicular vector that is parallel to hC
-        para1 = (perp * hC2 / norm(hC)).sum(axis=1)
-        para2 = (hC / norm(hC)).T
-        c = np.array((para2[0] * para1, para2[1] * para1, para2[2] * para1))
-        c_coord = np.sqrt(np.sum(c.T**2, axis=1))
-
-        # find magnitude
-        neg = np.where(para1 < 0)
-        # multiply by -1 if anti-parallel
-        c_coord[neg] = c_coord[neg] * (-1)
+        # find components parallel to hB and hC for coordinates
+        b_coord = (pos * hB2 / norm(hB)).sum(axis=1)
+        c_coord = (pos * hC2 / norm(hC)).sum(axis=1)
 
         return b_coord, c_coord
 
